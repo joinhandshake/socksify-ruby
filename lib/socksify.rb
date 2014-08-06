@@ -91,7 +91,7 @@ class SOCKSError < RuntimeError
   end
 end
 
-class TCPSocket
+class TCPSOCKSSocket < TCPSocket
   @@socks_version ||= "5"
   
   def self.socks_version
@@ -218,8 +218,8 @@ class TCPSocket
   # Connect
   def socks_connect(host, port)
     Socksify::debug_debug "Sending destination address"
-    write TCPSocket.socks_version
-    Socksify::debug_debug TCPSocket.socks_version.unpack "H*"
+    write TCPSOCKSSocket.socks_version
+    Socksify::debug_debug TCPSOCKSSocket.socks_version.unpack "H*"
     write "\001"
     write "\000" if @@socks_version == "5"
     write [port].pack('n') if @@socks_version =~ /^4/
@@ -311,7 +311,7 @@ end
 
 module Socksify
   def self.resolve(host)
-    s = TCPSocket.new
+    s = TCPSOCKSSocket.new
 
     begin
       Socksify::debug_debug "Sending hostname to resolve: #{host}"
@@ -339,15 +339,15 @@ module Socksify
   end
 
   def self.proxy(server, port)
-    default_server = TCPSocket::socks_server
-    default_port = TCPSocket::socks_port
+    default_server = TCPSOCKSSocket::socks_server
+    default_port = TCPSOCKSSocket::socks_port
     begin
-      TCPSocket::socks_server = server
-      TCPSocket::socks_port = port
+      TCPSOCKSSocket::socks_server = server
+      TCPSOCKSSocket::socks_port = port
       yield
     ensure
-      TCPSocket::socks_server = default_server
-      TCPSocket::socks_port = default_port
+      TCPSOCKSSocket::socks_server = default_server
+      TCPSOCKSSocket::socks_port = default_port
     end
   end
 end
