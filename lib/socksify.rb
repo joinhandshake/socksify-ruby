@@ -151,7 +151,7 @@ class TCPSOCKSSocket < TCPSocket
   alias :initialize_tcp :initialize
 
   # See http://tools.ietf.org/html/rfc1928
-  def initialize(host=nil, port=0, local_host=nil, local_port=nil)
+  def initialize(host=nil, port=0, local_host=nil, local_port=nil, **kwargs)
     if host.is_a?(SOCKSConnectionPeerAddress)
       socks_peer = host
       socks_server = socks_peer.socks_server
@@ -166,7 +166,7 @@ class TCPSOCKSSocket < TCPSocket
 
     if socks_server and socks_port and not socks_ignores.include?(host)
       Socksify::debug_notice "Connecting to SOCKS server #{socks_server}:#{socks_port}"
-      initialize_tcp socks_server, socks_port
+      initialize_tcp socks_server, socks_port, **kwargs
 
       socks_authenticate unless @@socks_version =~ /^4/
 
