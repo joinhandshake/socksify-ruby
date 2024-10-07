@@ -171,7 +171,7 @@ class TCPSOCKSSocket < TCPSocket
       socks_authenticate unless @@socks_version =~ /^4/
 
       if host
-        socks_connect(host, port)
+        socks_connect(host, port, kwargs[:connect_timeout])
       end
     else
       Socksify::debug_notice "Connecting directly to #{host}:#{port}"
@@ -216,7 +216,7 @@ class TCPSOCKSSocket < TCPSocket
   end
 
   # Connect
-  def socks_connect(host, port)
+  def socks_connect(host, port, connect_timeout = nil)
     Socksify::debug_debug "Sending destination address"
     write TCPSOCKSSocket.socks_version
     Socksify::debug_debug TCPSOCKSSocket.socks_version.unpack "H*"
@@ -252,15 +252,31 @@ class TCPSOCKSSocket < TCPSocket
     end
     write [port].pack('n') if @@socks_version == "5"
 
-    socks_receive_reply
+    socks_receive_reply(connect_timeout)
     Socksify::debug_notice "Connected to #{host}:#{port} over SOCKS"
   end
 
   # returns [bind_addr: String, bind_port: Fixnum]
-  def socks_receive_reply
+  def socks_receive_reply(connect_timeout = nil)
     Socksify::debug_debug "Waiting for SOCKS reply"
     if @@socks_version == "5"
-      connect_reply = recv(4)
+      connect_reply = ''
+
+      if connect_timeout
+        begin
+          connect_reply = recv_nonblock(4)
+        rescue IO::WaitReadable
+          if IO.select([self], [],[self], connect_timeout)
+            Socksify::debug_debug("retrying recv_nonblock")
+            retry
+          else # IO.select returns nil when timeout is hit
+            Socksify::debug_debug("connect_timeout hit")
+            raise SOCKSError.new("Timed out wating for connection. (connect_timeout: #{connect_timeout})")
+          end
+        end
+      else
+        connect_reply = recv(4)
+      end
       Socksify::debug_debug connect_reply.unpack "H*"
       if connect_reply[0..0] != "\005"
         raise SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
